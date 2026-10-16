@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-bg-base: #F8FAFC;
+    --color-surface-panel: #FFFFFF;
+    --color-border-subtle: #E2E8F0;
+    --color-accent-primary: #4F46E5;
+    --color-accent-lemon: #FACC15;
+    --color-text-ink: #0F172A;
+  }
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--color-bg-base);
+    color: var(--color-text-ink);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Universal accessible focus ring */
+  *:focus-visible {
+    outline: 2px solid #4F46E5;
+    outline-offset: 2px;
+  }
+}
+
+/* Custom Clean Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* 75% Clean Precision Surfaces */
+.glass-panel, .precision-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-card:hover {
+  border-color: #CBD5E1;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+/* 15% Campus Neubrutalism Accents */
+.neo-badge-lemon {
+  background-color: #FACC15;
+  color: #0F172A;
+  border: 1.5px solid #0F172A;
+  box-shadow: 2px 2px 0px #0F172A;
+}
+
+.neo-badge-cobalt {
+  background-color: #EEF2FF;
+  color: #4338CA;
+  border: 1.5px solid #4F46E5;
+  box-shadow: 2px 2px 0px #4F46E5;
+}
+
+.neo-btn-primary {
+  background-color: #4F46E5;
+  color: #FFFFFF;
+  font-weight: 600;
+  border: 1.5px solid #0F172A;
+  box-shadow: 2.5px 2.5px 0px #0F172A;
+  transition: all 0.12s ease;
+}
+
+.neo-btn-primary:hover {
+  background-color: #4338CA;
+  transform: translate(-1px, -1px);
+  box-shadow: 3.5px 3.5px 0px #0F172A;
+}
+
+.neo-btn-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px #0F172A;
+}
+
+.neo-btn-lemon {
+  background-color: #FACC15;
+  color: #0F172A;
+  font-weight: 700;
+  border: 1.5px solid #0F172A;
+  box-shadow: 2.5px 2.5px 0px #0F172A;
+  transition: all 0.12s ease;
+}
+
+.neo-btn-lemon:hover {
+  background-color: #FDE047;
+  transform: translate(-1px, -1px);
+  box-shadow: 3.5px 3.5px 0px #0F172A;
+}
+
+.neo-btn-lemon:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px #0F172A;
+}
+
+/* Inputs and interactive focus */
+input, select, textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 1px #4F46E5;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
