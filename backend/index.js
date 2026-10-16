@@ -24,6 +24,9 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// Enable trust proxy for cloud hosting (Render, AWS, Cloudflare)
+app.set("trust proxy", 1);
+
 // Initialize Socket.io
 initSocket(server);
 
