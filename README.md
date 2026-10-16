@@ -3,6 +3,11 @@
 > **Where every hackathon team and campus event starts.**  
 > An end-to-end, real-time campus competition management platform powering multi-track engineering fests, automated team formation, rubric-based judge evaluations, live projector leaderboards, and on-the-fly streaming certificate generation.
 
+### 🌐 Live Production Links
+- **Frontend Web Application**: [https://stage-zero-three.vercel.app](https://stage-zero-three.vercel.app)
+- **Backend API Service**: [https://stagezero-backend.onrender.com](https://stagezero-backend.onrender.com)
+- **API Health Check**: [https://stagezero-backend.onrender.com/api/v1/fests](https://stagezero-backend.onrender.com/api/v1/fests)
+
 ---
 
 ## 1. Problem Statement
