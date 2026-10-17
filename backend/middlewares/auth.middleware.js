@@ -13,9 +13,13 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
       throw new ApiError(401, "Unauthorized request: No access token provided");
     }
 
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      throw new ApiError(500, "Server configuration error: ACCESS_TOKEN_SECRET is not configured");
+    }
+
     const decodedToken = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET || "festflow_super_secret_access_jwt_key_2026_dev_mode"
+      process.env.ACCESS_TOKEN_SECRET
     );
 
     const user = await User.findById(decodedToken?._id).select(
@@ -42,13 +46,13 @@ export const verifyOptionalJWT = asyncHandler(async (req, res, next) => {
       req.cookies?.accessToken ||
       req.header("Authorization")?.replace("Bearer ", "");
 
-    if (!token) {
+    if (!token || !process.env.ACCESS_TOKEN_SECRET) {
       return next();
     }
 
     const decodedToken = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET || "festflow_super_secret_access_jwt_key_2026_dev_mode"
+      process.env.ACCESS_TOKEN_SECRET
     );
 
     const user = await User.findById(decodedToken?._id).select(

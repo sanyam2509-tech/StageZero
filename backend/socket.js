@@ -6,10 +6,19 @@ let io = null;
  * Initialize Socket.io server with CORS
  * @param {import('http').Server} httpServer
  */
-export const initSocket = (httpServer) => {
+export const initSocket = (httpServer, originValidator = null) => {
   io = new Server(httpServer, {
     cors: {
-      origin: (origin, callback) => callback(null, true),
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (typeof originValidator === "function") {
+          if (originValidator(origin)) {
+            return callback(null, true);
+          }
+          return callback(new Error(`Socket CORS policy violation: Origin '${origin}' is not authorized`));
+        }
+        return callback(null, true);
+      },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     },

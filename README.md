@@ -64,13 +64,13 @@ College hackathons and campus engineering fests face acute operational fragmenta
 1. Authorized judges open the **Judge Scoring Console** (`/events/:id/judge`).
 2. Submissions appear in a split-screen workbench with project links and interactive rubric sliders.
 3. Criteria enforce strict boundaries ($0 \le score \le maxScore$) and require 100% completion before publishing.
-4. Upon submission, MongoDB executes an aggregation pipeline weighting each criterion:
-   $$\text{Total Score} = \sum (\text{criterion score} \times \text{weight})$$
-5. The updated ranking is broadcast instantaneously to all connected projector screens via Socket.io.
+4. Upon submission, the engine enforces server-side rubric constraints and calculates a normalized 0–100 score:
+   $$\text{Total Score} = \frac{\sum \left( \frac{\text{score}}{\text{maxScore}} \times \text{weight} \right)}{\sum \text{weight}} \times 100$$
+5. The updated ranking is broadcast instantaneously to all connected projector screens via Socket.io with strict data privacy (masking invite codes and emails).
 
 ### Workflow 5: Instant Vector PDF Certificate Streaming
 1. Once an event concludes, participants and winners can download official credentials.
-2. The server streams a vector-rendered PDF certificate directly over HTTP (using PDFKit) featuring team details, college crest, verification ID, and official organizer signatures.
+2. The server streams a vector-rendered, light-themed academic PDF certificate directly over HTTP (using PDFKit) featuring precision neo-brutalist framing, verified credentials, tamper-evident deterministic verification ID, and official organizer signatures.
 
 ---
 
@@ -189,10 +189,11 @@ PORT=8000
 MONGO_URI=mongodb://127.0.0.1:27017/festflow
 CORS_ORIGIN=http://localhost:5173
 NODE_ENV=development
-ACCESS_TOKEN_SECRET=festflow_super_secret_access_jwt_key_2026_dev_mode
+ACCESS_TOKEN_SECRET=your_secure_random_jwt_access_secret_min_32_chars
 ACCESS_TOKEN_EXPIRY=1d
-REFRESH_TOKEN_SECRET=festflow_super_secret_refresh_jwt_key_2026_dev_mode
+REFRESH_TOKEN_SECRET=your_secure_random_jwt_refresh_secret_min_32_chars
 REFRESH_TOKEN_EXPIRY=10d
+ENABLE_DEMO=true
 ```
 
 ### 3. Install Dependencies & Seed Sample Data

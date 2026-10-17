@@ -334,6 +334,15 @@ export const removeOrganizer = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Cannot remove the primary fest creator");
   }
 
+  const currentUserIdStr = req.user._id.toString();
+  const isCreator = fest.createdBy.toString() === currentUserIdStr;
+  const isSelf = currentUserIdStr === userId;
+  const isSuperAdmin = req.user?.globalRole === "superadmin";
+
+  if (!isCreator && !isSelf && !isSuperAdmin) {
+    throw new ApiError(403, "Only the primary fest creator can remove other co-organizers");
+  }
+
   fest.organizers = fest.organizers.filter(
     (orgId) => orgId.toString() !== userId
   );

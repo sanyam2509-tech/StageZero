@@ -21,14 +21,53 @@ import evaluationRouter from "./routes/evaluation.routes.js";
 
 dotenv.config();
 
+// Startup validation for critical security secrets
+const requiredEnvSecrets = ["ACCESS_TOKEN_SECRET", "REFRESH_TOKEN_SECRET"];
+const missingEnvSecrets = requiredEnvSecrets.filter((key) => !process.env[key]);
+if (missingEnvSecrets.length > 0) {
+  const errMsg = `[CRITICAL SECURITY CONFIG] Missing mandatory environment variable(s): ${missingEnvSecrets.join(", ")}`;
+  console.error(errMsg);
+  if (process.env.NODE_ENV === "production") {
+    process.exit(1);
+  }
+}
+
 const app = express();
 const server = http.createServer(app);
 
 // Enable trust proxy for cloud hosting (Render, AWS, Cloudflare)
 app.set("trust proxy", 1);
 
-// Initialize Socket.io
-initSocket(server);
+// Configure allowed CORS origins
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const defaultOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+];
+
+const allowedOrigins = Array.from(new Set([...configuredOrigins, ...defaultOrigins]));
+
+export const isAllowedOrigin = (origin) => {
+  // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // In development, allow any localhost/127.0.0.1 port (e.g. Vite auto-incremented port)
+  if (process.env.NODE_ENV !== "production") {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Initialize Socket.io with strict origin validation
+initSocket(server, isAllowedOrigin);
 
 // Security & utility middlewares
 app.use(
@@ -37,19 +76,13 @@ app.use(
   })
 );
 
-const allowedOrigins = [
-  process.env.CORS_ORIGIN || "http://localhost:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
-];
-
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
-        callback(null, true); // Permissive in dev to avoid blocking
+        callback(new Error(`CORS policy violation: Origin '${origin}' is not authorized`));
       }
     },
     credentials: true,

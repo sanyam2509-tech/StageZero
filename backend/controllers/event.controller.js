@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Event } from "../models/Event.model.js";
 import { Fest } from "../models/Fest.model.js";
 import { User } from "../models/User.model.js";
@@ -182,13 +183,27 @@ export const assignJudges = asyncHandler(async (req, res) => {
 export const getEventById = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
 
-  const event = await Event.findById(eventId)
-    .populate("festId", "title slug collegeName createdBy organizers")
+  let event = await Event.findById(eventId)
+    .populate({
+      path: "festId",
+      select: "title slug collegeName createdBy organizers",
+      populate: [
+        { path: "createdBy", select: "name email college" },
+        { path: "organizers", select: "name email college" },
+      ],
+    })
     .populate("judges", "name email college")
     .lean();
 
   if (!event) {
     throw new ApiError(404, "Event not found");
+  }
+
+  // Ensure judgeInviteToken exists for older records
+  if (!event.judgeInviteToken) {
+    const token = "JDG-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+    await Event.updateOne({ _id: eventId }, { $set: { judgeInviteToken: token } });
+    event.judgeInviteToken = token;
   }
 
   // Strict Organizer Isolation:

@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import crypto from "crypto";
 
 const roundSchema = new Schema(
   {
@@ -86,6 +87,13 @@ const eventSchema = new Schema(
         ref: "User",
       },
     ],
+    judgeInviteToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      default: () => "JDG-" + crypto.randomBytes(3).toString("hex").toUpperCase(),
+    },
     status: {
       type: String,
       enum: ["upcoming", "ongoing", "completed"],

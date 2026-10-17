@@ -15,33 +15,46 @@ export const isFestOrganizer = asyncHandler(async (req, res, next) => {
     return next();
   }
 
-  let festId = req.params.festId || req.body.festId;
-  const festSlug = req.params.slug;
-  const eventId = req.params.eventId || req.body.eventId;
-  const teamId = req.params.teamId || req.body.teamId;
+  const { teamId, submissionId, eventId, festId, slug } = req.params;
 
   let fest = null;
+  let event = null;
 
-  if (festId) {
-    fest = await Fest.findById(festId);
-  } else if (festSlug) {
-    fest = await Fest.findOne({ slug: festSlug });
-  } else if (eventId) {
-    const event = await Event.findById(eventId);
-    if (!event) {
-      throw new ApiError(404, "Associated event not found");
-    }
-    fest = await Fest.findById(event.festId);
-  } else if (teamId) {
+  // Resolve fest strictly based on route parameters (resource hierarchy)
+  // NEVER allow req.body.festId to override a specific resource target
+  if (teamId) {
     const team = await Team.findById(teamId);
     if (!team) {
       throw new ApiError(404, "Associated team not found");
     }
-    const event = await Event.findById(team.eventId);
+    event = await Event.findById(team.eventId);
     if (!event) {
       throw new ApiError(404, "Associated event for team not found");
     }
     fest = await Fest.findById(event.festId);
+  } else if (submissionId) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new ApiError(404, "Associated submission not found");
+    }
+    event = await Event.findById(submission.eventId);
+    if (!event) {
+      throw new ApiError(404, "Associated event for submission not found");
+    }
+    fest = await Fest.findById(event.festId);
+  } else if (eventId) {
+    event = await Event.findById(eventId);
+    if (!event) {
+      throw new ApiError(404, "Associated event not found");
+    }
+    fest = await Fest.findById(event.festId);
+  } else if (festId) {
+    fest = await Fest.findById(festId);
+  } else if (slug) {
+    fest = await Fest.findOne({ slug });
+  } else if (req.body?.festId) {
+    // Only accept body.festId if NO resource params were present in URL (e.g. POST /events)
+    fest = await Fest.findById(req.body.festId);
   }
 
   if (!fest) {
@@ -62,6 +75,7 @@ export const isFestOrganizer = asyncHandler(async (req, res, next) => {
   }
 
   req.fest = fest;
+  if (event) req.event = event;
   next();
 });
 

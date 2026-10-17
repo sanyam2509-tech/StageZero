@@ -70,17 +70,22 @@ export const registerUser = asyncHandler(async (req, res) => {
     organization: organization || "",
   });
 
-  // If registering as a Judge with an event code/ID, automatically link them to the event's judge panel
+  // If registering as a Judge with an invite token, link them to the event's judge panel securely
   if (role === "judge" && judgeInviteCode) {
     try {
       const trimmedCode = judgeInviteCode.trim();
-      const event = await Event.findById(trimmedCode).catch(() => null);
+      const event = await Event.findOne({
+        $or: [
+          { judgeInviteToken: trimmedCode.toUpperCase() },
+          { judgeInviteToken: trimmedCode },
+        ],
+      });
       if (event && !event.judges.some((j) => j.toString() === user._id.toString())) {
         event.judges.push(user._id);
         await event.save();
       }
     } catch (e) {
-      // Non-fatal if invalid event ID passed
+      // Non-fatal if invalid token passed
     }
   }
 
@@ -181,9 +186,13 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
   try {
+    if (!process.env.REFRESH_TOKEN_SECRET) {
+      throw new ApiError(500, "Server configuration error: REFRESH_TOKEN_SECRET is not configured");
+    }
+
     const decodedToken = jwt.verify(
       incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET || "festflow_super_secret_refresh_jwt_key_2026_dev_mode"
+      process.env.REFRESH_TOKEN_SECRET
     );
 
     const user = await User.findById(decodedToken?._id);
@@ -230,6 +239,11 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
  * Body: { role: 'organizer' | 'judge' | 'participant' }
  */
 export const demoLogin = asyncHandler(async (req, res) => {
+  // Disallow demo login in production unless explicitly enabled via ENABLE_DEMO=true
+  if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEMO !== "true") {
+    throw new ApiError(403, "Demo login is disabled in production environments");
+  }
+
   const { role } = req.body;
 
   const validRoles = ["organizer", "judge", "participant", "superadmin"];

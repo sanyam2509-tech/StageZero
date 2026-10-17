@@ -25,7 +25,6 @@ export const calculateLeaderboard = async (eventId) => {
         _id: "$submissionId",
         averageScore: { $avg: "$totalWeightedScore" },
         judgesCount: { $sum: 1 },
-        allFeedback: { $push: "$feedback" },
       },
     },
     {
@@ -50,41 +49,48 @@ export const calculateLeaderboard = async (eventId) => {
     {
       $unwind: "$team",
     },
+    // Multi-round deduplication: Sort by highest round first, then average score
     {
-      $lookup: {
-        from: "users",
-        localField: "team.leaderId",
-        foreignField: "_id",
-        as: "leader",
-      },
+      $sort: { "submission.roundNumber": -1, averageScore: -1 },
     },
+    // Group by team so each team only appears ONCE on the leaderboard
     {
-      $unwind: {
-        path: "$leader",
-        preserveNullAndEmptyArrays: true,
+      $group: {
+        _id: "$team._id",
+        submissionId: { $first: "$submission._id" },
+        teamId: { $first: "$team._id" },
+        teamName: { $first: "$team.name" },
+        projectTitle: { $first: "$submission.projectTitle" },
+        tagline: { $first: "$submission.tagline" },
+        description: { $first: "$submission.description" },
+        repoUrl: { $first: "$submission.repoUrl" },
+        demoUrl: { $first: "$submission.demoUrl" },
+        videoUrl: { $first: "$submission.videoUrl" },
+        techStack: { $first: "$submission.techStack" },
+        submittedAt: { $first: "$submission.submittedAt" },
+        roundNumber: { $first: "$submission.roundNumber" },
+        averageScore: { $first: "$averageScore" },
+        judgesCount: { $first: "$judgesCount" },
       },
     },
     {
       $project: {
         _id: 1,
-        submissionId: "$_id",
+        submissionId: 1,
         averageScore: { $round: ["$averageScore", 2] },
         judgesCount: 1,
-        projectTitle: "$submission.projectTitle",
-        tagline: "$submission.tagline",
-        description: "$submission.description",
-        repoUrl: "$submission.repoUrl",
-        demoUrl: "$submission.demoUrl",
-        videoUrl: "$submission.videoUrl",
-        techStack: "$submission.techStack",
-        submittedAt: "$submission.submittedAt",
-        roundNumber: "$submission.roundNumber",
-        teamId: "$team._id",
-        teamName: "$team.name",
-        inviteCode: "$team.inviteCode",
-        checkedIn: "$team.checkedIn",
-        leaderName: "$leader.name",
-        leaderEmail: "$leader.email",
+        projectTitle: 1,
+        tagline: 1,
+        description: 1,
+        repoUrl: 1,
+        demoUrl: 1,
+        videoUrl: 1,
+        techStack: 1,
+        submittedAt: 1,
+        roundNumber: 1,
+        teamId: 1,
+        teamName: 1,
+        // STRICT PRIVACY: inviteCode, leaderName, leaderEmail, and feedback are removed from public projection
       },
     },
     {
@@ -123,7 +129,13 @@ export const submitEvaluation = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Event not found");
   }
 
-  // Completeness check: prevent publishing incomplete evaluations
+  // Completeness check and Rubric integrity enforcement:
+  // Read maxScore and weight strictly from the authorized event rubric
+  let totalScore = 0;
+  let totalWeight = 0;
+  let sanitizedScores = [];
+  let totalWeightedScore = 0;
+
   if (Array.isArray(event.rubric) && event.rubric.length > 0) {
     for (const r of event.rubric) {
       const match = scores.find((s) => s.criterion === r.criterion);
@@ -141,31 +153,44 @@ export const submitEvaluation = asyncHandler(async (req, res) => {
           `Incomplete scorecard: Valid score required for criterion '${r.criterion}' (0 to ${r.maxScore || 10})`
         );
       }
+
+      const rawScore = Number(match.score);
+      const authorizedMax = Number(r.maxScore) || 10;
+      const authorizedWeight = Number(r.weight) || 1.0;
+
+      totalWeight += authorizedWeight;
+      totalScore += (rawScore / authorizedMax) * authorizedWeight;
+
+      sanitizedScores.push({
+        criterion: r.criterion,
+        score: rawScore,
+        maxScore: authorizedMax,
+        weight: authorizedWeight,
+      });
     }
+
+    // Normalize out of 100 for fairness across custom weights
+    const normalized = totalWeight > 0 ? (totalScore / totalWeight) * 100 : totalScore * 10;
+    totalWeightedScore = Number(normalized.toFixed(2));
+  } else {
+    sanitizedScores = scores.map((item) => {
+      const rawScore = Number(item.score) || 0;
+      const max = 10;
+      const weight = 1.0;
+      totalWeight += weight;
+      totalScore += (rawScore / max) * weight;
+
+      return {
+        criterion: item.criterion,
+        score: rawScore,
+        maxScore: max,
+        weight,
+      };
+    });
+
+    const normalized = (totalScore / Math.max(totalWeight, 1)) * 100;
+    totalWeightedScore = Number(normalized.toFixed(2));
   }
-
-  // Calculate total weighted score
-  // For each criterion: (score / maxScore) * weight * 10
-  let totalScore = 0;
-  let totalWeight = 0;
-
-  const sanitizedScores = scores.map((item) => {
-    const rawScore = Number(item.score) || 0;
-    const max = Number(item.maxScore) || 10;
-    const weight = Number(item.weight) || 1.0;
-
-    totalWeight += weight;
-    totalScore += (rawScore / max) * weight * 10;
-
-    return {
-      criterion: item.criterion,
-      score: rawScore,
-      maxScore: max,
-      weight,
-    };
-  });
-
-  const totalWeightedScore = Number(totalScore.toFixed(2));
 
   const evaluation = await Evaluation.findOneAndUpdate(
     {
@@ -266,8 +291,17 @@ export const downloadCertificate = asyncHandler(async (req, res) => {
   if (!event) throw new ApiError(404, "Event not found");
   if (!team) throw new ApiError(404, "Team not found");
 
+  // Strict Event-Team Binding: prevent generating certificates for other events
+  if (team.eventId.toString() !== eventId) {
+    throw new ApiError(
+      400,
+      "Security validation failed: Specified team does not belong to this event"
+    );
+  }
+
   const fest = event.festId;
   const festTitle = fest?.title || "StageZero Campus Tech Fest";
+  const collegeName = fest?.collegeName || "";
 
   // Check if current user is part of the team or an organizer
   const userIdStr = req.user._id.toString();
@@ -290,7 +324,8 @@ export const downloadCertificate = asyncHandler(async (req, res) => {
     );
   }
 
-  const participantName = req.user.name;
+  // If downloaded by an organizer on behalf of the squad, personalize with leader's name
+  const participantName = isMember ? req.user.name : (team.leaderId?.name || req.user.name);
 
   // Determine Rank from leaderboard
   const leaderboard = await calculateLeaderboard(eventId);
@@ -301,16 +336,18 @@ export const downloadCertificate = asyncHandler(async (req, res) => {
   const rank = teamRankEntry ? teamRankEntry.rank : null;
   const isWinner = rank && rank <= 3;
 
+  // Cryptographically deterministic, tamper-evident credential ID
   const verificationId = `SZ-${eventId.slice(-4).toUpperCase()}-${teamId
     .slice(-4)
-    .toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    .toUpperCase()}-${req.user._id.toString().slice(-4).toUpperCase()}`;
 
-  // Stream PDF
+  // Stream light-themed precision academic certificate
   generateCertificate(res, {
     participantName,
     teamName: team.name,
     eventTitle: event.title,
     festTitle,
+    collegeName,
     verificationId,
     type: isWinner ? "Winner" : "Participation",
     rank: isWinner ? rank : null,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { eventsApi, teamsApi, submissionsApi } from "../api/endpoints";
+import { eventsApi, teamsApi, submissionsApi, festsApi } from "../api/endpoints";
 import { useAuth } from "../hooks/useAuth";
 import { RoleBadge } from "../components/RoleBadge";
 import { formatDateTime } from "../utils/formatters";
@@ -47,6 +47,11 @@ export const OrganizerDashboard = () => {
   // Judge Assignment State
   const [judgeEmail, setJudgeEmail] = useState("");
   const [assigningJudge, setAssigningJudge] = useState(false);
+
+  // Co-Organizer State
+  const [coOrganizerEmail, setCoOrganizerEmail] = useState("");
+  const [addingCoOrganizer, setAddingCoOrganizer] = useState(false);
+  const [removingCoOrgId, setRemovingCoOrgId] = useState(null);
 
   // Rubric editing state
   const [rubric, setRubric] = useState([]);
@@ -122,6 +127,46 @@ export const OrganizerDashboard = () => {
       toast.error(err.response?.data?.message || "Failed to assign judge");
     } finally {
       setAssigningJudge(false);
+    }
+  };
+
+  // Add Co-Organizer to Fest
+  const handleAddCoOrganizer = async (e) => {
+    e.preventDefault();
+    if (!coOrganizerEmail.trim()) return;
+    const festId = event?.festId?._id || event?.festId;
+    if (!festId) {
+      toast.error("Fest information not found");
+      return;
+    }
+
+    setAddingCoOrganizer(true);
+    try {
+      await festsApi.addOrganizer(festId, coOrganizerEmail.trim());
+      toast.success(`Co-organizer '${coOrganizerEmail}' added successfully!`);
+      setCoOrganizerEmail("");
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add co-organizer");
+    } finally {
+      setAddingCoOrganizer(false);
+    }
+  };
+
+  // Remove Co-Organizer from Fest
+  const handleRemoveCoOrganizer = async (userId) => {
+    const festId = event?.festId?._id || event?.festId;
+    if (!festId) return;
+
+    setRemovingCoOrgId(userId);
+    try {
+      await festsApi.removeOrganizer(festId, userId);
+      toast.success("Co-organizer removed successfully");
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove co-organizer");
+    } finally {
+      setRemovingCoOrgId(null);
     }
   };
 
@@ -408,8 +453,31 @@ export const OrganizerDashboard = () => {
               <h2 className="text-lg font-heading font-bold text-slate-900">Assign Event Judges</h2>
             </div>
             <p className="text-xs text-slate-500">
-              Grant scoring privileges for this hackathon by verified judge email address.
+              Grant scoring privileges for this hackathon by verified judge email address or private invite code.
             </p>
+
+            {event?.judgeInviteToken && (
+              <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[10px] font-mono text-amber-800 uppercase tracking-wider block font-bold">
+                    Judge Self-Invite Code
+                  </span>
+                  <span className="font-mono font-extrabold text-amber-950 text-sm">
+                    {event.judgeInviteToken}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(event.judgeInviteToken);
+                    toast.success("Judge invite code copied to clipboard!");
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-mono bg-white border border-amber-300 rounded-lg text-amber-900 font-semibold hover:bg-amber-100 transition-colors cursor-pointer"
+                >
+                  Copy Code
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleAssignJudge} className="flex gap-2">
               <label htmlFor="organizer-judge-email" className="sr-only">
@@ -457,6 +525,123 @@ export const OrganizerDashboard = () => {
                       </div>
                     </div>
                   ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Manage Co-Organizers Panel */}
+          <div className="precision-card p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-purple-600">
+              <Users className="w-5 h-5" aria-hidden="true" />
+              <h2 className="text-lg font-heading font-bold text-slate-900">Fest Co-Organizers</h2>
+            </div>
+            <p className="text-xs text-slate-500">
+              Co-organizers share operational controls to manage events, rubric criteria, announcements, and check-ins.
+            </p>
+
+            <form onSubmit={handleAddCoOrganizer} className="flex gap-2">
+              <label htmlFor="organizer-co-email" className="sr-only">
+                Co-Organizer Email Address
+              </label>
+              <input
+                id="organizer-co-email"
+                type="email"
+                required
+                autoComplete="email"
+                spellCheck={false}
+                placeholder="co-organizer@university.edu"
+                value={coOrganizerEmail}
+                onChange={(e) => setCoOrganizerEmail(e.target.value)}
+                className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-purple-600 focus-visible:ring-2 focus-visible:ring-purple-600/30 placeholder:text-slate-400"
+              />
+              <button
+                type="submit"
+                disabled={addingCoOrganizer}
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs border border-slate-900 shadow-sm transition-colors shrink-0 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-600 cursor-pointer"
+              >
+                {addingCoOrganizer ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : "Invite"}
+              </button>
+            </form>
+
+            <div className="space-y-2 pt-2">
+              <span className="text-[11px] font-mono tabular-nums uppercase tracking-wider text-slate-500 font-semibold">
+                Organizing Team ({1 + (event?.festId?.organizers?.length || 0)})
+              </span>
+              <div className="space-y-2">
+                {/* Primary Creator */}
+                {event?.festId?.createdBy && (
+                  <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="w-6 h-6 rounded-full bg-purple-200 text-purple-900 font-bold flex items-center justify-center text-[10px] border border-purple-300 font-mono">
+                        {(event.festId.createdBy.name || "C").charAt(0)}
+                      </span>
+                      <div className="truncate">
+                        <div className="font-semibold text-slate-900 flex items-center gap-1.5 truncate">
+                          <span>{event.festId.createdBy.name || "Lead Organizer"}</span>
+                          <span className="text-[9px] font-mono uppercase bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded font-bold">
+                            Lead
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate font-mono">
+                          {event.festId.createdBy.email}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Co-Organizers list */}
+                {Array.isArray(event?.festId?.organizers) &&
+                  event.festId.organizers
+                    .filter((org) => {
+                      const orgId = (org?._id || org)?.toString();
+                      const creatorId = (event?.festId?.createdBy?._id || event?.festId?.createdBy)?.toString();
+                      return orgId !== creatorId;
+                    })
+                    .map((org) => {
+                      const orgId = (org?._id || org).toString();
+                      const isCurrentUserCreator =
+                        user &&
+                        (user.globalRole === "superadmin" ||
+                          (event?.festId?.createdBy?._id || event?.festId?.createdBy)?.toString() === user._id);
+
+                      return (
+                        <div
+                          key={orgId}
+                          className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-800 font-bold flex items-center justify-center text-[10px] border border-slate-300 font-mono">
+                              {(org.name || "O").charAt(0)}
+                            </span>
+                            <div className="truncate">
+                              <div className="font-semibold text-slate-900 truncate">
+                                {org.name || "Co-Organizer"}
+                              </div>
+                              <div className="text-[10px] text-slate-500 truncate font-mono">
+                                {org.email || orgId}
+                              </div>
+                            </div>
+                          </div>
+
+                          {isCurrentUserCreator && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCoOrganizer(orgId)}
+                              disabled={removingCoOrgId === orgId}
+                              className="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                              title="Remove co-organizer"
+                            >
+                              {removingCoOrgId === orgId ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
               </div>
             </div>
           </div>

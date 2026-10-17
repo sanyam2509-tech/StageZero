@@ -80,6 +80,9 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 
 // Generate Access Token
 userSchema.methods.generateAccessToken = function () {
+  if (!process.env.ACCESS_TOKEN_SECRET) {
+    throw new Error("Server configuration error: ACCESS_TOKEN_SECRET is missing");
+  }
   return jwt.sign(
     {
       _id: this._id,
@@ -87,7 +90,7 @@ userSchema.methods.generateAccessToken = function () {
       name: this.name,
       globalRole: this.globalRole,
     },
-    process.env.ACCESS_TOKEN_SECRET || "festflow_super_secret_access_jwt_key_2026_dev_mode",
+    process.env.ACCESS_TOKEN_SECRET,
     {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "1d",
     }
@@ -96,11 +99,14 @@ userSchema.methods.generateAccessToken = function () {
 
 // Generate Refresh Token
 userSchema.methods.generateRefreshToken = function () {
+  if (!process.env.REFRESH_TOKEN_SECRET) {
+    throw new Error("Server configuration error: REFRESH_TOKEN_SECRET is missing");
+  }
   return jwt.sign(
     {
       _id: this._id,
     },
-    process.env.REFRESH_TOKEN_SECRET || "festflow_super_secret_refresh_jwt_key_2026_dev_mode",
+    process.env.REFRESH_TOKEN_SECRET,
     {
       expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "10d",
     }
