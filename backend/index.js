@@ -49,6 +49,7 @@ const defaultOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:3000",
+  "https://stage-zero-three.vercel.app",
 ];
 
 const allowedOrigins = Array.from(new Set([...configuredOrigins, ...defaultOrigins]));
@@ -57,6 +58,10 @@ export const isAllowedOrigin = (origin) => {
   // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
+  // Allow any Vercel preview or production deployments
+  if (/^https:\/\/([a-zA-Z0-9_-]+\.)*vercel\.app$/.test(origin)) {
+    return true;
+  }
   // In development, allow any localhost/127.0.0.1 port (e.g. Vite auto-incremented port)
   if (process.env.NODE_ENV !== "production") {
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
