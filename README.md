@@ -7,6 +7,7 @@
 - **Frontend Web Application**: [https://stage-zero-three.vercel.app](https://stage-zero-three.vercel.app)
 - **Backend API Service**: [https://stagezero-backend.onrender.com](https://stagezero-backend.onrender.com)
 - **API Health Check**: [https://stagezero-backend.onrender.com/api/v1/fests](https://stagezero-backend.onrender.com/api/v1/fests)
+- **Video Walkthrough / Demo**: [Google Drive Demo Video](https://drive.google.com/drive/folders/1Bq2Z-Wg6pzrVGckn9DmeK93sQ594cGHP)
 
 ---
 
